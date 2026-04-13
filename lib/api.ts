@@ -15,6 +15,20 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   })
+
+  if (res.status === 401) {
+    // Token expirado o inválido — limpiar sesión y redirigir a login
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('admin_token')
+      localStorage.removeItem('admin_user')
+      // Importar js-cookie dinámicamente para no acoplar el módulo
+      const Cookies = (await import('js-cookie')).default
+      Cookies.remove('admin_token')
+      window.location.href = '/login'
+    }
+    throw new Error('Sesión expirada. Redirigiendo...')
+  }
+
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }))
     throw new Error(error.message ?? 'Error en la solicitud')
