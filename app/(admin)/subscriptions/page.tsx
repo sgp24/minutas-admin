@@ -6,58 +6,76 @@ import {
   ChevronLeft, 
   ChevronRight,
   ExternalLink,
-  Loader2,
-  Filter
+  Loader2
 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface Subscription {
   id: string;
   userId: string;
   userEmail: string;
+  userName: string; // Agregado según TAREA-10
   status: 'active' | 'canceled' | 'past_due';
   planName: string;
   externalSubscriptionId: string;
   createdAt: string;
 }
 
-const MOCK_SUBS: Subscription[] = [
-  { id: 'sub_1', userId: '2', userEmail: 'ana@example.com', status: 'active', planName: 'Pro Monthly', externalSubscriptionId: 'sub_Stripe123', createdAt: '2026-02-15T14:30:00Z' },
-  { id: 'sub_2', userId: '3', userEmail: 'luis@corp.com', status: 'active', planName: 'Team Annual', externalSubscriptionId: 'sub_Stripe456', createdAt: '2026-03-01T09:15:00Z' },
-  { id: 'sub_3', userId: '6', userEmail: 'elena@minutas.app', status: 'canceled', planName: 'Pro Monthly', externalSubscriptionId: 'sub_Stripe789', createdAt: '2026-04-05T16:10:00Z' },
-  ...Array.from({ length: 12 }).map((_, i) => ({
-    id: `sub-mock-${i + 4}`,
-    userId: `user-${i + 10}`,
-    userEmail: `subscriber${i + 10}@test.com`,
-    status: (['active', 'canceled', 'past_due'] as const)[i % 3],
-    planName: i % 2 === 0 ? 'Pro Monthly' : 'Early Access Special',
-    externalSubscriptionId: `sub_StripeMock${i + 100}`,
-    createdAt: new Date(Date.now() - (i + 5) * 86400000).toISOString()
-  }))
-];
+interface SubsResponse {
+  items: Subscription[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
 
 export default function SubscriptionsPage() {
   const [filter, setFilter] = useState<'all' | 'active' | 'canceled' | 'past_due'>('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [subs, setSubs] = useState<Subscription[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    // Simulamos carga
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchSubs = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          pageSize: '20'
+        });
+        
+        if (filter !== 'all') {
+          params.append('status', filter);
+        }
 
+        // El backend actualmente no filtra por search en subscriptions según el plan, 
+        // pero lo dejamos preparado por si acaso o filtramos localmente lo recibido.
+        const data = await api.get<SubsResponse>(`/minutas/admin/subscriptions?${params}`);
+        setSubs(data.items);
+        setTotal(data.total);
+        setTotalPages(data.totalPages);
+      } catch (err: any) {
+        console.error('Error fetching subscriptions', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubs();
+  }, [page, filter]);
+
+  // Filtrado local adicional para el search (si el backend no lo soporta en este endpoint)
   const filteredSubs = useMemo(() => {
-    return MOCK_SUBS.filter(s => {
-      const matchesFilter = filter === 'all' || s.status === filter;
-      const matchesSearch = s.userEmail.toLowerCase().includes(search.toLowerCase()) || 
-                           s.externalSubscriptionId.toLowerCase().includes(search.toLowerCase());
-      return matchesFilter && matchesSearch;
-    });
-  }, [filter, search]);
-
-  const totalPages = Math.ceil(filteredSubs.length / 20);
-  const currentSubs = filteredSubs.slice((page - 1) * 20, page * 20);
+    if (!search) return subs;
+    return subs.filter(s => 
+      s.userEmail.toLowerCase().includes(search.toLowerCase()) || 
+      s.userName?.toLowerCase().includes(search.toLowerCase()) ||
+      s.externalSubscriptionId.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [subs, search]);
 
   const getStatusBadge = (status: Subscription['status']) => {
     const styles: Record<string, string> = {
@@ -83,7 +101,7 @@ export default function SubscriptionsPage() {
             </div>
             <input
               type="text"
-              placeholder="Buscar por email o ID Stripe..."
+              placeholder="Buscar por email, nombre o ID Stripe..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="block w-full rounded-xl border border-white/5 bg-[#111317] py-2.5 pl-10 pr-3 text-sm text-white placeholder-white/20 transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/10"
@@ -105,6 +123,9 @@ export default function SubscriptionsPage() {
               </button>
             ))}
           </div>
+        </div>
+        <div className="text-xs font-bold text-white/30 uppercase tracking-widest">
+          {total} registros
         </div>
       </div>
 
@@ -128,18 +149,19 @@ export default function SubscriptionsPage() {
                     <Loader2 className="mx-auto h-8 w-8 animate-spin text-white/20" />
                   </td>
                 </tr>
-              ) : currentSubs.length === 0 ? (
+              ) : filteredSubs.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-20 text-center text-white/40">
                     No se encontraron suscripciones
                   </td>
                 </tr>
               ) : (
-                currentSubs.map((sub) => (
+                filteredSubs.map((sub) => (
                   <tr key={sub.id} className="hover:bg-white/[0.01] transition-colors">
                     <td className="px-6 py-4">
-                      <p className="font-semibold text-white">{sub.userEmail}</p>
-                      <p className="text-[10px] text-white/20 font-mono uppercase tracking-tighter">ID: {sub.userId}</p>
+                      <p className="font-semibold text-white">{sub.userName || 'Usuario'}</p>
+                      <p className="text-xs text-white/40">{sub.userEmail}</p>
+                      <p className="text-[10px] text-white/20 font-mono uppercase tracking-tighter mt-0.5">ID: {sub.userId}</p>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -178,7 +200,7 @@ export default function SubscriptionsPage() {
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="text-xs font-bold text-white/40 hover:text-white disabled:opacity-30"
+              className="text-xs font-bold text-white/40 hover:text-white disabled:opacity-30 transition-colors"
             >
               Anterior
             </button>
@@ -188,7 +210,7 @@ export default function SubscriptionsPage() {
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="text-xs font-bold text-white/40 hover:text-white disabled:opacity-30"
+              className="text-xs font-bold text-white/40 hover:text-white disabled:opacity-30 transition-colors"
             >
               Siguiente
             </button>
