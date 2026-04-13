@@ -7,7 +7,8 @@ import {
   Activity, 
   FileText, 
   DollarSign,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -37,9 +38,11 @@ export default function DashboardPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const fetchMetrics = async () => {
+      setLoading(true);
       try {
         const data = await api.get<Metrics>('/minutas/admin/metrics');
         setMetrics(data);
@@ -51,9 +54,9 @@ export default function DashboardPage() {
     };
 
     fetchMetrics();
-  }, []);
+  }, [refreshKey]);
 
-  if (loading) {
+  if (loading && !metrics) {
     return (
       <div className="flex h-[60vh] items-center justify-center text-white/40">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -79,6 +82,18 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Header Actions */}
+      <div className="flex justify-end">
+        <button 
+          onClick={() => setRefreshKey(k => k + 1)}
+          disabled={loading}
+          className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40 transition-all hover:text-white disabled:opacity-50"
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          Actualizar datos
+        </button>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <KPICard 
@@ -101,7 +116,7 @@ export default function DashboardPage() {
         />
         <KPICard 
           title="MRR Estimado" 
-          value={`$${metrics.mrr}`} 
+          value={`$${metrics.mrr.toLocaleString('es-MX')} MXN`} 
           icon={DollarSign}
           color="emerald"
         />

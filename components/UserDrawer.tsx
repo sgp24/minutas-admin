@@ -26,6 +26,19 @@ interface User {
   createdAt: string;
 }
 
+interface UserDetail extends User {
+  stripeCustomerId?: string;
+  lastLoginAt?: string;
+  sessionCount: number;
+  subscriptions: {
+    id: string;
+    status: string;
+    planName: string;
+    externalSubscriptionId?: string;
+    createdAt: string;
+  }[];
+}
+
 interface UserDrawerProps {
   user: User | null;
   onClose: () => void;
@@ -35,6 +48,8 @@ interface UserDrawerProps {
 export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps) {
   const [role, setRole] = useState<User['role']>('free');
   const [status, setStatus] = useState<User['status']>('active');
+  const [detail, setDetail] = useState<UserDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -42,8 +57,23 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
     if (user) {
       setRole(user.role);
       setStatus(user.status);
+      fetchUserDetail(user.id);
+    } else {
+      setDetail(null);
     }
   }, [user]);
+
+  const fetchUserDetail = async (userId: string) => {
+    setLoadingDetail(true);
+    try {
+      const data = await api.get<UserDetail>(`/minutas/admin/users/${userId}`);
+      setDetail(data);
+    } catch (err) {
+      console.error('Error fetching user detail', err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -118,11 +148,36 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
                 </div>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 text-center">Proveedor</p>
-                <div className="flex items-center justify-center gap-2 rounded-xl bg-white/5 py-2 px-3 text-sm text-white/60 capitalize">
-                  <Mail size={14} />
-                  {user.authProvider}
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 text-center">Último acceso</p>
+                <div className="flex items-center justify-center gap-2 rounded-xl bg-white/5 py-2 px-3 text-sm text-white/60">
+                  <Activity size={14} />
+                  {loadingDetail ? (
+                    <div className="h-4 w-12 animate-pulse rounded bg-white/10" />
+                  ) : detail?.lastLoginAt ? (
+                    new Date(detail.lastLoginAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+                  ) : 'Nunca'}
                 </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 text-center">Sesiones totales</p>
+                <div className="flex items-center justify-center gap-2 rounded-xl bg-white/5 py-2 px-3 text-sm font-bold text-primary-light">
+                  {loadingDetail ? (
+                    <div className="h-4 w-8 animate-pulse rounded bg-white/10" />
+                  ) : detail?.sessionCount ?? 0}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 text-center">Stripe Customer</p>
+                <button 
+                  onClick={() => detail?.stripeCustomerId && navigator.clipboard.writeText(detail.stripeCustomerId)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 py-2 px-3 text-[10px] text-white/40 hover:bg-white/10 hover:text-white transition-all overflow-hidden"
+                >
+                  {loadingDetail ? (
+                    <div className="h-3 w-16 animate-pulse rounded bg-white/10" />
+                  ) : detail?.stripeCustomerId ? (
+                    <span className="truncate">{detail.stripeCustomerId}</span>
+                  ) : 'Sin ID'}
+                </button>
               </div>
             </div>
 
@@ -186,10 +241,38 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
                 <Tag size={16} className="text-indigo-400" />
                 Historial de Suscripciones
               </div>
-              <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-1">
-                <div className="p-4 text-center text-xs text-white/30">
-                  No hay suscripciones previas registradas.
-                </div>
+              
+              <div className="space-y-3">
+                {loadingDetail ? (
+                  [1, 2].map(i => (
+                    <div key={i} className="h-16 w-full animate-pulse rounded-2xl border border-white/5 bg-white/[0.02]" />
+                  ))
+                ) : !detail?.subscriptions || detail.subscriptions.length === 0 ? (
+                  <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-center text-xs text-white/20">
+                    Sin suscripciones previas
+                  </div>
+                ) : (
+                  detail.subscriptions.map(sub => (
+                    <div key={sub.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-white/80">{sub.planName}</p>
+                        <p className="text-[10px] text-white/30 mt-0.5">
+                          {new Date(sub.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-tighter ${
+                          sub.status === 'active' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-white/10 bg-white/5 text-white/30'
+                        }`}>
+                          {sub.status}
+                        </span>
+                        {sub.externalSubscriptionId && (
+                          <span className="text-[9px] font-mono text-white/20">{sub.externalSubscriptionId}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

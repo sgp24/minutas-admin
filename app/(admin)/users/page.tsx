@@ -19,6 +19,18 @@ interface User {
   status: 'active' | 'suspended';
   authProvider: 'email' | 'google';
   createdAt: string;
+  lastLoginAt?: string;
+}
+
+function timeAgo(dateStr?: string): string {
+  if (!dateStr) return 'Nunca';
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const days = Math.floor(diff / 86400000)
+  if (days === 0) return 'Hoy'
+  if (days === 1) return 'Ayer'
+  if (days < 30) return `hace ${days} días`
+  if (days < 365) return `hace ${Math.floor(days/30)} meses`
+  return `hace ${Math.floor(days/365)} años`
 }
 
 interface UsersResponse {
@@ -136,7 +148,7 @@ export default function UsersPage() {
                 <th className="px-6 py-4">Plan</th>
                 <th className="px-6 py-4">Estado</th>
                 <th className="px-6 py-4">Auth</th>
-                <th className="px-6 py-4 text-right">Registro</th>
+                <th className="px-6 py-4 text-right">Registro y Acceso</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -192,12 +204,13 @@ export default function UsersPage() {
                         <span className="capitalize">{user.authProvider}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right text-white/40">
-                      {new Date(user.createdAt).toLocaleDateString('es-MX', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
+                    <td className="px-6 py-4 text-right">
+                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-tighter">
+                        {new Date(user.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                      <p className="text-xs font-semibold text-white/60 mt-0.5">
+                        {timeAgo(user.lastLoginAt)}
+                      </p>
                     </td>
                   </tr>
                 ))
