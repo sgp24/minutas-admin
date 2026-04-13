@@ -26,7 +26,7 @@ interface Metrics {
     free: number;
     pro: number;
     team: number;
-    early_access: number;
+    earlyAccess: number; // backend usa camelCase
   };
   mrr: number;
 }
@@ -41,19 +41,8 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        // En un futuro esto llamará a api.get<Metrics>('/minutas/admin/metrics')
-        // Por ahora usamos mock data del plan
-        await new Promise(resolve => setTimeout(resolve, 800)); // Simulamos latencia
-        
-        const mockData: Metrics = {
-          totalUsers: 12,
-          activeToday: 3,
-          totalMinutas: 47,
-          planBreakdown: { free: 9, pro: 2, team: 0, early_access: 1 },
-          mrr: 298
-        };
-        
-        setMetrics(mockData);
+        const data = await api.get<Metrics>('/minutas/admin/metrics');
+        setMetrics(data);
       } catch (err: any) {
         setError(err.message || 'Error al cargar métricas');
       } finally {
@@ -85,7 +74,7 @@ export default function DashboardPage() {
     { name: 'Free', value: metrics.planBreakdown.free },
     { name: 'Pro', value: metrics.planBreakdown.pro },
     { name: 'Team', value: metrics.planBreakdown.team },
-    { name: 'Early Access', value: metrics.planBreakdown.early_access },
+    { name: 'Early Access', value: metrics.planBreakdown.earlyAccess },
   ].filter(d => d.value > 0);
 
   return (
