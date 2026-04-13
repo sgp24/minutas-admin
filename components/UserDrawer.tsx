@@ -49,11 +49,14 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
     setSaving(true);
     
     try {
-      // Simulamos llamadas a los endpoints PATCH
-      // await api.patch(`/minutas/admin/users/${user.id}/role`, { role });
-      // await api.patch(`/minutas/admin/users/${user.id}/status`, { status });
+      // Solo llamar si el valor cambió
+      if (role !== user.role) {
+        await api.patch(`/minutas/admin/users/${user.id}/role`, { role });
+      }
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (status !== user.status) {
+        await api.patch(`/minutas/admin/users/${user.id}/status`, { status });
+      }
       
       const updatedUser: User = { ...user, role, status };
       onUpdate(updatedUser);
