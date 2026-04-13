@@ -6,7 +6,9 @@ import { usePathname } from 'next/navigation';
 const TITLES: Record<string, string> = {
   '/dashboard': 'Panel de Control',
   '/users': 'Gestión de Usuarios',
+  '/activity': 'Feed de Actividad',
   '/subscriptions': 'Suscripciones y Pagos',
+  '/plans': 'Gestión de Planes',
 };
 
 export default function AdminLayout({

@@ -16,8 +16,19 @@ import {
   Cell, 
   ResponsiveContainer, 
   Tooltip, 
-  Legend 
+  Legend,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid
 } from 'recharts';
+
+interface DailyStat {
+  date: string;
+  users: number;
+  sessions: number;
+}
 
 interface Metrics {
   totalUsers: number;
@@ -30,6 +41,7 @@ interface Metrics {
     earlyAccess: number; // backend usa camelCase
   };
   mrr: number;
+  dailyStats: DailyStat[];
 }
 
 const COLORS = ['#94a3b8', '#4d8eff', '#8b5cf6', '#22d3ee'];
@@ -80,6 +92,12 @@ export default function DashboardPage() {
     { name: 'Early Access', value: metrics.planBreakdown.earlyAccess },
   ].filter(d => d.value > 0);
 
+  // Formatear fechas para el gráfico de líneas (ej: "2026-04-13" -> "13 abr")
+  const lineChartData = (metrics.dailyStats || []).map(d => ({
+    ...d,
+    displayDate: new Date(d.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+  }));
+
   return (
     <div className="space-y-8">
       {/* Header Actions */}
@@ -124,7 +142,64 @@ export default function DashboardPage() {
 
       {/* Charts & Details */}
       <div className="grid gap-6 lg:grid-cols-3">
+        {/* Gráfico de Tendencia (Nueva TAREA-17) */}
         <div className="rounded-2xl border border-white/5 bg-[#111317] p-6 lg:col-span-2">
+          <h3 className="mb-6 text-sm font-bold uppercase tracking-wider text-white/40">
+            Tendencia de Crecimiento
+          </h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={lineChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis 
+                  dataKey="displayDate" 
+                  stroke="rgba(255,255,255,0.3)" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false} 
+                />
+                <YAxis 
+                  stroke="rgba(255,255,255,0.3)" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false}
+                  tickFormatter={(val) => Math.floor(val).toString()}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#111317', 
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderRadius: '12px',
+                    fontSize: '12px'
+                  }}
+                  itemStyle={{ color: '#fff' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
+                <Line 
+                  name="Nuevos Usuarios"
+                  type="monotone" 
+                  dataKey="users" 
+                  stroke="#4d8eff" 
+                  strokeWidth={3} 
+                  dot={{ r: 4, fill: '#4d8eff', strokeWidth: 0 }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                />
+                <Line 
+                  name="Sesiones Creadas"
+                  type="monotone" 
+                  dataKey="sessions" 
+                  stroke="#22d3ee" 
+                  strokeWidth={3} 
+                  dot={{ r: 4, fill: '#22d3ee', strokeWidth: 0 }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Distribución de Planes */}
+        <div className="rounded-2xl border border-white/5 bg-[#111317] p-6 lg:col-span-1">
           <h3 className="mb-6 text-sm font-bold uppercase tracking-wider text-white/40">
             Distribución de Planes
           </h3>
@@ -136,7 +211,7 @@ export default function DashboardPage() {
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
-                  outerRadius={100}
+                  outerRadius={80}
                   paddingAngle={5}
                   dataKey="value"
                 >
@@ -148,25 +223,13 @@ export default function DashboardPage() {
                   contentStyle={{ 
                     backgroundColor: '#111317', 
                     borderColor: 'rgba(255,255,255,0.1)',
-                    borderRadius: '12px',
-                    color: '#fff'
+                    borderRadius: '12px'
                   }}
                   itemStyle={{ color: '#fff' }}
                 />
-                <Legend iconType="circle" />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
               </PieChart>
             </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/5 bg-[#111317] p-6">
-          <h3 className="mb-6 text-sm font-bold uppercase tracking-wider text-white/40">
-            Resumen de Actividad
-          </h3>
-          <div className="space-y-4">
-            <StatRow label="Tasa de conversión" value={`${metrics.totalUsers > 0 ? (((metrics.planBreakdown.pro + metrics.planBreakdown.team) / metrics.totalUsers) * 100).toFixed(1) : 0}%`} />
-            <StatRow label="Promedio minutas/user" value={(metrics.totalMinutas / metrics.totalUsers).toFixed(1)} />
-            <StatRow label="Usuarios Pro/Team" value={metrics.planBreakdown.pro + metrics.planBreakdown.team} />
           </div>
         </div>
       </div>
@@ -197,15 +260,6 @@ function KPICard({ title, value, icon: Icon, color }: any) {
           <Icon size={24} />
         </div>
       </div>
-    </div>
-  );
-}
-
-function StatRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex items-center justify-between border-b border-white/5 py-3 last:border-0">
-      <span className="text-sm text-white/60">{label}</span>
-      <span className="text-sm font-bold text-white">{value}</span>
     </div>
   );
 }

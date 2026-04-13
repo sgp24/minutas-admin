@@ -11,14 +11,18 @@ import {
   Shield, 
   Menu, 
   X,
-  User as UserIcon
+  User as UserIcon,
+  Zap,
+  Package
 } from 'lucide-react';
 import Cookies from 'js-cookie';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Usuarios', href: '/users', icon: Users },
+  { label: 'Actividad', href: '/activity', icon: Zap },
   { label: 'Suscripciones', href: '/subscriptions', icon: CreditCard },
+  { label: 'Planes', href: '/plans', icon: Package },
 ];
 
 export default function AdminSidebar() {
