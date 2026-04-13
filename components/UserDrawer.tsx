@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  X, 
-  Shield, 
-  User as UserIcon, 
-  Mail, 
-  Calendar, 
-  CheckCircle2, 
+import {
+  X,
+  Shield,
+  User as UserIcon,
+  Mail,
+  Calendar,
+  CheckCircle2,
   AlertCircle,
   Loader2,
   Save,
-  Tag
+  Tag,
+  Activity
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -220,21 +221,3 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
   );
 }
 
-function Activity({ size, className }: any) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width={size} 
-      height={size} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-    </svg>
-  );
-}

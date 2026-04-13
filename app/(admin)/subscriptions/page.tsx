@@ -175,9 +175,15 @@ export default function SubscriptionsPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 font-mono text-xs text-white/40">
                         {sub.externalSubscriptionId}
-                        <button className="text-white/20 hover:text-primary-light">
+                        <a
+                          href={`https://dashboard.stripe.com/subscriptions/${sub.externalSubscriptionId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-white/20 hover:text-primary-light"
+                          onClick={e => e.stopPropagation()}
+                        >
                           <ExternalLink size={12} />
-                        </button>
+                        </a>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right text-white/40">

@@ -149,7 +149,7 @@ export default function DashboardPage() {
             Resumen de Actividad
           </h3>
           <div className="space-y-4">
-            <StatRow label="Tasa de conversión" value="16.6%" />
+            <StatRow label="Tasa de conversión" value={`${metrics.totalUsers > 0 ? (((metrics.planBreakdown.pro + metrics.planBreakdown.team) / metrics.totalUsers) * 100).toFixed(1) : 0}%`} />
             <StatRow label="Promedio minutas/user" value={(metrics.totalMinutas / metrics.totalUsers).toFixed(1)} />
             <StatRow label="Usuarios Pro/Team" value={metrics.planBreakdown.pro + metrics.planBreakdown.team} />
           </div>

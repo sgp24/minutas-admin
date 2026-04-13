@@ -37,6 +37,7 @@ export default function UsersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Debounce logic
@@ -51,6 +52,7 @@ export default function UsersPage() {
   useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true);
+      setError(null);
       try {
         const query = new URLSearchParams({
           page: String(page),
@@ -62,7 +64,7 @@ export default function UsersPage() {
         setTotal(data.total);
         setTotalPages(data.totalPages);
       } catch (err: any) {
-        console.error('Error fetching users', err);
+        setError(err.message || 'Error al cargar usuarios');
       } finally {
         setLoading(false);
       }
@@ -142,6 +144,12 @@ export default function UsersPage() {
                 <tr>
                   <td colSpan={5} className="py-20 text-center">
                     <Loader2 className="mx-auto h-8 w-8 animate-spin text-white/20" />
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="py-20 text-center text-red-400 text-sm">
+                    {error}
                   </td>
                 </tr>
               ) : users.length === 0 ? (
