@@ -3,15 +3,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
-  MoreHorizontal, 
   ChevronLeft, 
   ChevronRight,
-  User as UserIcon,
-  Shield,
   Mail,
-  Calendar,
   Loader2
 } from 'lucide-react';
+import UserDrawer from '@/components/UserDrawer';
 
 interface User {
   id: string;
@@ -23,7 +20,7 @@ interface User {
   createdAt: string;
 }
 
-const MOCK_USERS: User[] = [
+const INITIAL_MOCK_USERS: User[] = [
   { id: '1', name: 'Sergio Pedrosa', email: 'sergio@minutas.com.mx', role: 'admin', status: 'active', authProvider: 'google', createdAt: '2026-01-10T10:00:00Z' },
   { id: '2', name: 'Ana Garcia', email: 'ana@example.com', role: 'pro', status: 'active', authProvider: 'email', createdAt: '2026-02-15T14:30:00Z' },
   { id: '3', name: 'Luis Rodriguez', email: 'luis@corp.com', role: 'team', status: 'active', authProvider: 'email', createdAt: '2026-03-01T09:15:00Z' },
@@ -37,16 +34,17 @@ const MOCK_USERS: User[] = [
     role: (['free', 'pro', 'early_access'] as const)[i % 3],
     status: 'active' as const,
     authProvider: (['email', 'google'] as const)[i % 2],
-    createdAt: new Date(Date.now() - i * 86400000).toISOString()
+    createdAt: new Date(Date.now() - (i + 10) * 86400000).toISOString()
   }))
 ];
 
 export default function UsersPage() {
+  const [users, setUsers] = useState<User[]>(INITIAL_MOCK_USERS);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Debounce logic
   useEffect(() => {
@@ -55,17 +53,17 @@ export default function UsersPage() {
   }, [search]);
 
   useEffect(() => {
-    // Simulamos carga
+    // Simulamos carga inicial
     const timer = setTimeout(() => setLoading(false), 500);
     return () => clearTimeout(timer);
   }, []);
 
   const filteredUsers = useMemo(() => {
-    return MOCK_USERS.filter(u => 
+    return users.filter(u => 
       u.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       u.email.toLowerCase().includes(debouncedSearch.toLowerCase())
     );
-  }, [debouncedSearch]);
+  }, [debouncedSearch, users]);
 
   const totalPages = Math.ceil(filteredUsers.length / 20);
   const currentUsers = filteredUsers.slice((page - 1) * 20, page * 20);
@@ -94,6 +92,11 @@ export default function UsersPage() {
         {status}
       </span>
     );
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    setSelectedUser(updatedUser);
   };
 
   return (
@@ -149,7 +152,7 @@ export default function UsersPage() {
                   <tr 
                     key={user.id} 
                     className="group cursor-pointer hover:bg-white/[0.02]"
-                    onClick={() => setSelectedUserId(user.id)}
+                    onClick={() => setSelectedUser(user)}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -216,20 +219,11 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* TAREA-05 Placeholder for Drawer */}
-      {selectedUserId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="max-w-md rounded-2xl bg-[#111317] p-8 border border-white/10 shadow-2xl">
-            <p className="text-white/60 mb-4">Detalle de usuario {selectedUserId} (TAREA-05 en desarrollo)</p>
-            <button 
-              onClick={() => setSelectedUserId(null)}
-              className="w-full rounded-xl bg-primary py-2 text-sm font-bold text-white"
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      )}
+      <UserDrawer 
+        user={selectedUser} 
+        onClose={() => setSelectedUser(null)} 
+        onUpdate={handleUpdateUser}
+      />
     </div>
   );
 }
