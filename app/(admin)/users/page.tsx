@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Search, 
   ChevronLeft, 
@@ -9,6 +9,7 @@ import {
   Loader2
 } from 'lucide-react';
 import UserDrawer from '@/components/UserDrawer';
+import { api } from '@/lib/api';
 
 interface User {
   id: string;
@@ -20,26 +21,18 @@ interface User {
   createdAt: string;
 }
 
-const INITIAL_MOCK_USERS: User[] = [
-  { id: '1', name: 'Sergio Pedrosa', email: 'sergio@minutas.com.mx', role: 'admin', status: 'active', authProvider: 'google', createdAt: '2026-01-10T10:00:00Z' },
-  { id: '2', name: 'Ana Garcia', email: 'ana@example.com', role: 'pro', status: 'active', authProvider: 'email', createdAt: '2026-02-15T14:30:00Z' },
-  { id: '3', name: 'Luis Rodriguez', email: 'luis@corp.com', role: 'team', status: 'active', authProvider: 'email', createdAt: '2026-03-01T09:15:00Z' },
-  { id: '4', name: 'Maria Lopez', email: 'maria@gmail.com', role: 'free', status: 'suspended', authProvider: 'google', createdAt: '2026-03-20T18:45:00Z' },
-  { id: '5', name: 'David Smith', email: 'david@test.com', role: 'early_access', status: 'active', authProvider: 'email', createdAt: '2026-04-01T11:20:00Z' },
-  { id: '6', name: 'Elena Beltrán', email: 'elena@minutas.app', role: 'pro', status: 'active', authProvider: 'google', createdAt: '2026-04-05T16:10:00Z' },
-  ...Array.from({ length: 14 }).map((_, i) => ({
-    id: `mock-${i + 7}`,
-    name: `Usuario de Prueba ${i + 7}`,
-    email: `test${i + 7}@example.com`,
-    role: (['free', 'pro', 'early_access'] as const)[i % 3],
-    status: 'active' as const,
-    authProvider: (['email', 'google'] as const)[i % 2],
-    createdAt: new Date(Date.now() - (i + 10) * 86400000).toISOString()
-  }))
-];
+interface UsersResponse {
+  items: User[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>(INITIAL_MOCK_USERS);
+  const [users, setUsers] = useState<User[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -48,25 +41,35 @@ export default function UsersPage() {
 
   // Debounce logic
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1); // Reset page on new search
+    }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
   useEffect(() => {
-    // Simulamos carga inicial
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        const query = new URLSearchParams({
+          page: String(page),
+          pageSize: '20',
+          search: debouncedSearch
+        });
+        const data = await api.get<UsersResponse>(`/minutas/admin/users?${query}`);
+        setUsers(data.items);
+        setTotal(data.total);
+        setTotalPages(data.totalPages);
+      } catch (err: any) {
+        console.error('Error fetching users', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const filteredUsers = useMemo(() => {
-    return users.filter(u => 
-      u.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      u.email.toLowerCase().includes(debouncedSearch.toLowerCase())
-    );
-  }, [debouncedSearch, users]);
-
-  const totalPages = Math.ceil(filteredUsers.length / 20);
-  const currentUsers = filteredUsers.slice((page - 1) * 20, page * 20);
+    fetchUsers();
+  }, [page, debouncedSearch]);
 
   const getRoleBadge = (role: User['role']) => {
     const styles: Record<string, string> = {
@@ -117,7 +120,7 @@ export default function UsersPage() {
         </div>
         
         <div className="flex items-center gap-2 text-sm text-white/40">
-          <span>{filteredUsers.length} usuarios encontrados</span>
+          <span>{total} usuarios encontrados</span>
         </div>
       </div>
 
@@ -141,14 +144,14 @@ export default function UsersPage() {
                     <Loader2 className="mx-auto h-8 w-8 animate-spin text-white/20" />
                   </td>
                 </tr>
-              ) : currentUsers.length === 0 ? (
+              ) : users.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-20 text-center text-white/40">
                     No se encontraron usuarios
                   </td>
                 </tr>
               ) : (
-                currentUsers.map((user) => (
+                users.map((user) => (
                   <tr 
                     key={user.id} 
                     className="group cursor-pointer hover:bg-white/[0.02]"
