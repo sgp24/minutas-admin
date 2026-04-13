@@ -1,16 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { 
-  Search, 
-  ChevronLeft, 
-  ChevronRight,
+import { useState, useEffect } from 'react';
+import {
+  Search,
   Loader2,
   Monitor,
   Upload,
   Globe,
   CheckCircle2,
-  Clock
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
