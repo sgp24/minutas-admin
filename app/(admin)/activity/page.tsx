@@ -1,15 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  Search,
+import { 
+  Search, 
+  ChevronLeft, 
+  ChevronRight,
   Loader2,
   Monitor,
   Upload,
   Globe,
-  CheckCircle2,
+  CheckCircle2
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import SessionDrawer from '@/components/SessionDrawer';
 
 interface SessionItem {
   id: string;
@@ -61,6 +64,7 @@ export default function ActivityPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [loading, setLoading] = useState(true);
+  const [selectedSession, setSelectedSession] = useState<SessionItem | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -186,7 +190,11 @@ export default function ActivityPage() {
                 </tr>
               ) : (
                 sessions.map((session) => (
-                  <tr key={session.id} className="hover:bg-white/[0.01] transition-colors">
+                  <tr 
+                    key={session.id} 
+                    className="group hover:bg-white/[0.01] transition-colors cursor-pointer"
+                    onClick={() => setSelectedSession(session)}
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 font-bold text-xs text-primary-light">
@@ -255,6 +263,11 @@ export default function ActivityPage() {
           </div>
         )}
       </div>
+
+      <SessionDrawer 
+        session={selectedSession} 
+        onClose={() => setSelectedSession(null)} 
+      />
     </div>
   );
 }

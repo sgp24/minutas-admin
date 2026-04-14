@@ -6,7 +6,8 @@ import {
   ChevronLeft, 
   ChevronRight,
   Mail,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react';
 import UserDrawer from '@/components/UserDrawer';
 import { api } from '@/lib/api';
@@ -31,6 +32,29 @@ function timeAgo(dateStr?: string): string {
   if (days < 30) return `hace ${days} días`
   if (days < 365) return `hace ${Math.floor(days/30)} meses`
   return `hace ${Math.floor(days/365)} años`
+}
+
+function exportToCSV(rows: Record<string, any>[], filename: string) {
+  if (rows.length === 0) return
+  const headers = Object.keys(rows[0])
+  const csv = [
+    headers.join(','),
+    ...rows.map(row =>
+      headers.map(h => {
+        const val = row[h] ?? ''
+        return typeof val === 'string' && val.includes(',')
+          ? `"${val.replace(/"/g, '""')}"`
+          : val
+      }).join(',')
+    )
+  ].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 interface UsersResponse {
@@ -133,8 +157,25 @@ export default function UsersPage() {
           />
         </div>
         
-        <div className="flex items-center gap-2 text-sm text-white/40">
-          <span>{total} usuarios encontrados</span>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => exportToCSV(users.map(u => ({ 
+              nombre: u.name, 
+              email: u.email, 
+              rol: u.role, 
+              estado: u.status, 
+              proveedor: u.authProvider, 
+              registro: u.createdAt 
+            })), 'usuarios.csv')}
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40 transition-all hover:text-white"
+          >
+            <Download size={14} />
+            Exportar CSV
+          </button>
+          <div className="h-4 w-px bg-white/10" />
+          <div className="text-sm text-white/40">
+            <span>{total} usuarios encontrados</span>
+          </div>
         </div>
       </div>
 

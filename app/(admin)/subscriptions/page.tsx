@@ -6,7 +6,8 @@ import {
   ChevronLeft, 
   ChevronRight,
   ExternalLink,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -27,6 +28,29 @@ interface SubsResponse {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+function exportToCSV(rows: Record<string, any>[], filename: string) {
+  if (rows.length === 0) return
+  const headers = Object.keys(rows[0])
+  const csv = [
+    headers.join(','),
+    ...rows.map(row =>
+      headers.map(h => {
+        const val = row[h] ?? ''
+        return typeof val === 'string' && val.includes(',')
+          ? `"${val.replace(/"/g, '""')}"`
+          : val
+      }).join(',')
+    )
+  ].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 export default function SubscriptionsPage() {
@@ -51,8 +75,6 @@ export default function SubscriptionsPage() {
           params.append('status', filter);
         }
 
-        // El backend actualmente no filtra por search en subscriptions según el plan, 
-        // pero lo dejamos preparado por si acaso o filtramos localmente lo recibido.
         const data = await api.get<SubsResponse>(`/minutas/admin/subscriptions?${params}`);
         setSubs(data.items);
         setTotal(data.total);
@@ -67,7 +89,7 @@ export default function SubscriptionsPage() {
     fetchSubs();
   }, [page, filter]);
 
-  // Filtrado local adicional para el search (si el backend no lo soporta en este endpoint)
+  // Filtrado local adicional para el search
   const filteredSubs = useMemo(() => {
     if (!search) return subs;
     return subs.filter(s => 
@@ -124,8 +146,25 @@ export default function SubscriptionsPage() {
             ))}
           </div>
         </div>
-        <div className="text-xs font-bold text-white/30 uppercase tracking-widest">
-          {total} registros
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => exportToCSV(filteredSubs.map(s => ({ 
+              email: s.userEmail, 
+              nombre: s.userName, 
+              plan: s.planName, 
+              estado: s.status, 
+              stripe_id: s.externalSubscriptionId, 
+              inicio: s.createdAt 
+            })), 'suscripciones.csv')}
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40 transition-all hover:text-white"
+          >
+            <Download size={14} />
+            Exportar CSV
+          </button>
+          <div className="h-4 w-px bg-white/10" />
+          <div className="text-xs font-bold text-white/30 uppercase tracking-widest">
+            {total} registros
+          </div>
         </div>
       </div>
 
@@ -175,18 +214,12 @@ export default function SubscriptionsPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 font-mono text-xs text-white/40">
                         {sub.externalSubscriptionId}
-                        <a
-                          href={`https://dashboard.stripe.com/subscriptions/${sub.externalSubscriptionId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-white/20 hover:text-primary-light"
-                          onClick={e => e.stopPropagation()}
-                        >
+                        <button className="text-white/20 hover:text-primary-light">
                           <ExternalLink size={12} />
-                        </a>
+                        </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right text-white/40">
+                    <td className="px-6 py-4 text-right text-white/40 text-xs">
                       {new Date(sub.createdAt).toLocaleDateString('es-MX', {
                         day: 'numeric',
                         month: 'short',
