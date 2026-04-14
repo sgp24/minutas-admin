@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  CheckCircle2, 
-  AlertTriangle, 
-  XCircle, 
-  RefreshCw, 
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  RefreshCw,
   Loader2,
   Database,
   Frown,
   PauseCircle,
-  BarChart3
+  BarChart3,
+  Trash2
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -41,6 +42,8 @@ export default function HealthPage() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanResult, setCleanResult] = useState<{ count: number } | null>(null);
 
   const fetchHealth = async () => {
     setLoading(true);
@@ -51,6 +54,20 @@ export default function HealthPage() {
       console.error('Error fetching health', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCleanup = async () => {
+    setCleaning(true);
+    setCleanResult(null);
+    try {
+      const res = await api.post<{ sessionsCleaned: number }>('/minutas/admin/sessions/cleanup', { stuckAfterHours: 2 });
+      setCleanResult({ count: res.sessionsCleaned });
+      setRefreshKey(k => k + 1); // Refrescar health tras limpiar
+    } catch (err) {
+      console.error('Error cleaning sessions', err);
+    } finally {
+      setCleaning(false);
     }
   };
 
@@ -96,14 +113,41 @@ export default function HealthPage() {
           </div>
         </div>
         
-        <button 
-          onClick={() => setRefreshKey(k => k + 1)}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white px-6 py-3 rounded-2xl text-sm font-bold transition-all disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          Verificar ahora
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Resultado de limpieza */}
+          {cleanResult !== null && (
+            <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${
+              cleanResult.count > 0
+                ? 'bg-emerald-500/10 text-emerald-400'
+                : 'bg-white/5 text-white/40'
+            }`}>
+              {cleanResult.count > 0
+                ? `${cleanResult.count} sesión${cleanResult.count > 1 ? 'es' : ''} limpiada${cleanResult.count > 1 ? 's' : ''}`
+                : 'Sin sesiones atascadas'}
+            </span>
+          )}
+
+          {/* Limpiar sesiones atascadas */}
+          <button
+            onClick={handleCleanup}
+            disabled={cleaning || loading}
+            title="Marca como 'failed' todas las sesiones activas con más de 2 horas sin completarse"
+            className="flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 px-4 py-3 rounded-2xl text-sm font-bold transition-all disabled:opacity-50"
+          >
+            {cleaning ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+            Limpiar atascadas
+          </button>
+
+          {/* Verificar ahora */}
+          <button
+            onClick={() => setRefreshKey(k => k + 1)}
+            disabled={loading}
+            className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white px-6 py-3 rounded-2xl text-sm font-bold transition-all disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            Verificar ahora
+          </button>
+        </div>
       </div>
 
       {/* Check Cards */}
