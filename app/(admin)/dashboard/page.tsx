@@ -10,7 +10,9 @@ import {
   Loader2,
   RefreshCw,
   Radio,
-  UserPlus
+  UserPlus,
+  TrendingUp,
+  CalendarDays
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -40,6 +42,13 @@ interface RecentSignup {
   createdAt: string;
 }
 
+interface ConversionFunnel {
+  totalUsers: number;
+  usersWithSession: number;
+  usersWithMinuta: number;
+  usersWithSubscription: number;
+}
+
 interface Metrics {
   totalUsers: number;
   activeToday: number;
@@ -53,9 +62,15 @@ interface Metrics {
   mrr: number;
   dailyStats: DailyStat[];
   recentSignups: RecentSignup[];
+  conversionFunnel: ConversionFunnel;
 }
 
 const COLORS = ['#94a3b8', '#4d8eff', '#8b5cf6', '#22d3ee'];
+
+function pct(part: number, total: number): number {
+  if (total === 0) return 0;
+  return Math.round((part / total) * 100);
+}
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -73,6 +88,7 @@ function timeAgo(dateStr: string): string {
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [activeSessions, setActiveSessions] = useState<{id: string, title?: string, userEmail: string, createdAt: string}[]>([]);
+  const [heatmapData, setHeatmapData] = useState<{ date: string; sessions: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -107,6 +123,12 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    api.get<{ dailyStats: { date: string; sessions: number }[] }>('/minutas/admin/metrics?statsDays=90')
+      .then(d => setHeatmapData(d.dailyStats))
+      .catch(() => {});
+  }, []);
+
   if (loading && !metrics) {
     return (
       <div className="flex h-[60vh] items-center justify-center text-white/40">
@@ -131,10 +153,18 @@ export default function DashboardPage() {
     { name: 'Early Access', value: metrics.planBreakdown.earlyAccess },
   ].filter(d => d.value > 0);
 
-  // Formatear fechas para el gráfico de líneas (ej: "2026-04-13" -> "13 abr")
   const lineChartData = (metrics.dailyStats || []).map(d => ({
     ...d,
     displayDate: new Date(d.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+  }));
+
+  const funnel = metrics.conversionFunnel ?? { totalUsers: 0, usersWithSession: 0, usersWithMinuta: 0, usersWithSubscription: 0 };
+
+  const maxSessions = Math.max(...heatmapData.map(d => d.sessions), 1);
+  const heatmapGrid = heatmapData.map(d => ({
+    date: d.date,
+    sessions: d.sessions,
+    intensity: d.sessions === 0 ? 0 : Math.ceil((d.sessions / maxSessions) * 4), // 0-4
   }));
 
   return (
@@ -212,6 +242,43 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Widget: Funnel de Conversión (TAREA-34) */}
+      <div className="rounded-3xl border border-white/5 bg-[#111317] p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 rounded-xl bg-white/5 text-white/40">
+            <TrendingUp size={18} />
+          </div>
+          <div>
+            <h3 className="font-bold text-white">Embudo de conversión</h3>
+            <p className="text-xs text-white/30">Del registro al pago</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {[
+            { label: 'Usuarios registrados', value: funnel.totalUsers,            color: 'bg-white/10',        pct: 100 },
+            { label: 'Crearon al menos 1 sesión', value: funnel.usersWithSession,     color: 'bg-blue-500/40',     pct: pct(funnel.usersWithSession, funnel.totalUsers) },
+            { label: 'Generaron al menos 1 minuta', value: funnel.usersWithMinuta,  color: 'bg-indigo-500/40',   pct: pct(funnel.usersWithMinuta, funnel.totalUsers) },
+            { label: 'Suscripción activa (Pro/Team)', value: funnel.usersWithSubscription, color: 'bg-emerald-500/40', pct: pct(funnel.usersWithSubscription, funnel.totalUsers) },
+          ].map((step, i) => (
+            <div key={i}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-white/60">{step.label}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-white">{step.value.toLocaleString('es-MX')}</span>
+                  <span className="text-[10px] font-mono text-white/30 w-10 text-right">{step.pct}%</span>
+                </div>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${step.color}`}
+                  style={{ width: `${step.pct}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Charts & Details */}
@@ -346,6 +413,62 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Heatmap de actividad (TAREA-36) */}
+      {heatmapData.length > 0 && (
+        <div className="rounded-3xl border border-white/5 bg-[#111317] p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-white/5 text-white/40">
+                <CalendarDays size={18} />
+              </div>
+              <div>
+                <h3 className="font-bold text-white">Actividad diaria</h3>
+                <p className="text-xs text-white/30">Sesiones por día — últimos 90 días</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-white/20">
+              <span>Menos</span>
+              {[0,1,2,3,4].map(i => (
+                <span key={i} className={`h-3 w-3 rounded-sm ${
+                  i === 0 ? 'bg-white/5' :
+                  i === 1 ? 'bg-primary/20' :
+                  i === 2 ? 'bg-primary/40' :
+                  i === 3 ? 'bg-primary/60' :
+                  'bg-primary/90'
+                }`} 
+                style={{
+                  background: i === 0 ? 'rgba(255,255,255,0.05)' : 
+                             i === 1 ? 'rgba(0,90,194,0.2)' :
+                             i === 2 ? 'rgba(0,90,194,0.4)' :
+                             i === 3 ? 'rgba(0,90,194,0.6)' : 'rgba(0,90,194,0.9)'
+                }}/>
+              ))}
+              <span>Más</span>
+            </div>
+          </div>
+          <div className="flex gap-1 overflow-x-auto pb-2">
+            {/* Agrupar heatmapGrid en semanas de 7 días */}
+            {Array.from({ length: Math.ceil(heatmapGrid.length / 7) }, (_, weekIdx) => (
+              <div key={weekIdx} className="flex flex-col gap-1">
+                {heatmapGrid.slice(weekIdx * 7, weekIdx * 7 + 7).map((day, dayIdx) => (
+                  <div
+                    key={dayIdx}
+                    title={`${day.date}: ${day.sessions} sesiones`}
+                    className="h-3 w-3 rounded-sm transition-all cursor-default"
+                    style={{
+                      background: day.intensity === 0 ? 'rgba(255,255,255,0.05)' : 
+                                 day.intensity === 1 ? 'rgba(0,90,194,0.2)' :
+                                 day.intensity === 2 ? 'rgba(0,90,194,0.4)' :
+                                 day.intensity === 3 ? 'rgba(0,90,194,0.6)' : 'rgba(0,90,194,0.9)'
+                    }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -373,6 +496,15 @@ function KPICard({ title, value, icon: Icon, color }: any) {
           <Icon size={24} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex items-center justify-between border-b border-white/5 py-3 last:border-0">
+      <span className="text-sm text-white/60">{label}</span>
+      <span className="text-sm font-bold text-white">{value}</span>
     </div>
   );
 }

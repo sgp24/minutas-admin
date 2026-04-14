@@ -7,7 +7,8 @@ import {
   Cpu, 
   DollarSign, 
   Loader2,
-  BarChart3
+  BarChart3,
+  Download
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -41,6 +42,30 @@ interface UsageResponse {
   };
   daily: DailyUsage[];
 }
+
+function exportToCSV(rows: Record<string, any>[], filename: string) {
+  if (rows.length === 0) return
+  const headers = Object.keys(rows[0])
+  const csv = [
+    headers.join(','),
+    ...rows.map(row =>
+      headers.map(h => {
+        const val = row[h] ?? ''
+        return typeof val === 'string' && val.includes(',')
+          ? `"${val.replace(/"/g, '""')}"`
+          : val
+      }).join(',')
+    )
+  ].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function UsagePage() {
   const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,7 +119,6 @@ export default function UsagePage() {
       </div>
 
       {/* Summary Cards */}
-...
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <UsageCard 
           title="Audio Procesado" 
@@ -129,14 +153,35 @@ export default function UsagePage() {
 
       {/* Main Chart */}
       <div className="rounded-3xl border border-white/5 bg-[#111317] p-8">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-2 rounded-xl bg-white/5 text-white/40">
-            <BarChart3 size={20} />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-white/5 text-white/40">
+              <BarChart3 size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Actividad Diaria de IA</h3>
+              <p className="text-xs text-white/30">Distribución de minutos y minutas (últimos {days} días)</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-white">Actividad Diaria de IA</h3>
-            <p className="text-xs text-white/30">Distribución de minutos y minutas (últimos 30 días)</p>
-          </div>
+          
+          <button
+            onClick={() => exportToCSV(
+              (usage?.daily || []).map(d => ({
+                fecha: d.date,
+                sesiones: d.sessionsProcessed,
+                minutos_audio: d.audioMinutes,
+                minutas_generadas: d.minutasGenerated,
+                tokens_llm: d.llmTokens,
+                costo_usd: d.estimatedCostUsd,
+              })),
+              `consumo-ia-${days}d.csv`
+            )}
+            disabled={!usage || usage.daily.length === 0}
+            className="flex items-center gap-1.5 text-white/30 hover:text-white text-xs font-semibold transition-all disabled:opacity-30"
+          >
+            <Download size={14} />
+            Exportar CSV
+          </button>
         </div>
 
         <div className="h-[400px] w-full">

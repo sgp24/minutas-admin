@@ -67,10 +67,15 @@ export default function AdminSidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [adminUser, setAdminUser] = useState<{ name: string; email: string } | null>(null);
   
-  // Alert states
+  // Alert states (TAREA-39)
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [lastReadAt, setLastReadAt] = useState<string>(() => {
+    if (typeof window === 'undefined') return new Date(0).toISOString();
+    return localStorage.getItem('admin_alerts_read_at') ?? new Date(0).toISOString();
+  });
   const [showAlertsPanel, setShowAlertsPanel] = useState(false);
+
+  const computedUnread = alerts.filter(a => new Date(a.timestamp) > new Date(lastReadAt)).length;
 
   useEffect(() => {
     const userStr = localStorage.getItem('admin_user');
@@ -91,10 +96,15 @@ export default function AdminSidebar() {
     try {
       const data = await api.get<AlertsResponse>('/minutas/admin/alerts');
       setAlerts(data.alerts);
-      setUnreadCount(data.unreadCount);
     } catch (err) {
       console.error('Error fetching alerts', err);
     }
+  };
+
+  const markAsRead = () => {
+    const now = new Date().toISOString();
+    setLastReadAt(now);
+    localStorage.setItem('admin_alerts_read_at', now);
   };
 
   const handleLogout = () => {
@@ -168,7 +178,7 @@ export default function AdminSidebar() {
             <button 
               onClick={() => {
                 setShowAlertsPanel(!showAlertsPanel);
-                setUnreadCount(0); // Mark as read locally
+                if (!showAlertsPanel) markAsRead();
               }}
               className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
                 showAlertsPanel ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/5'
@@ -176,9 +186,9 @@ export default function AdminSidebar() {
             >
               <div className="relative">
                 <Bell size={18} />
-                {unreadCount > 0 && (
+                {computedUnread > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white">
-                    {unreadCount}
+                    {computedUnread}
                   </span>
                 )}
               </div>
@@ -207,9 +217,14 @@ export default function AdminSidebar() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
                               <p className="truncate text-[11px] font-bold text-white/90">{alert.title}</p>
-                              {alert.count > 1 && (
-                                <span className="bg-white/10 px-1 rounded text-[9px] font-mono text-white/40">x{alert.count}</span>
-                              )}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {alert.count > 1 && (
+                                  <span className="bg-white/10 px-1 rounded text-[9px] font-mono text-white/40">x{alert.count}</span>
+                                )}
+                                {new Date(alert.timestamp) > new Date(lastReadAt) && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-blue-400 shrink-0 shadow-[0_0_8px_rgba(96,165,250,0.5)]" />
+                                )}
+                              </div>
                             </div>
                             <p className="text-[10px] text-white/40 leading-tight mt-0.5 line-clamp-2">{alert.message}</p>
                             <p className="text-[9px] text-white/20 mt-1.5 font-medium uppercase tracking-tighter">{timeAgo(alert.timestamp)}</p>
