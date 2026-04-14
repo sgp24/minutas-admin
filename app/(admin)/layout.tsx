@@ -9,6 +9,8 @@ const TITLES: Record<string, string> = {
   '/activity': 'Feed de Actividad',
   '/subscriptions': 'Suscripciones y Pagos',
   '/plans': 'Gestión de Planes',
+  '/health': 'Estado del Sistema',
+  '/usage': 'Consumo de IA',
 };
 
 export default function AdminLayout({

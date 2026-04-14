@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Search, 
-  ChevronLeft, 
-  ChevronRight,
+import {
+  Search,
   Loader2,
   Monitor,
   Upload,
