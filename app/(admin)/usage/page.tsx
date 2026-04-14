@@ -41,15 +41,16 @@ interface UsageResponse {
   };
   daily: DailyUsage[];
 }
-
 export default function UsagePage() {
   const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(30);
 
   useEffect(() => {
     const fetchUsage = async () => {
+      setLoading(true);
       try {
-        const data = await api.get<UsageResponse>('/minutas/admin/usage');
+        const data = await api.get<UsageResponse>(`/minutas/admin/usage?days=${days}`);
         setUsage(data);
       } catch (err) {
         console.error('Error fetching usage', err);
@@ -58,9 +59,9 @@ export default function UsagePage() {
       }
     };
     fetchUsage();
-  }, []);
+  }, [days]);
 
-  if (loading) {
+  if (loading && !usage) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-white/20" />
@@ -75,7 +76,25 @@ export default function UsagePage() {
 
   return (
     <div className="space-y-10">
+      {/* Date Selector (TAREA-28) */}
+      <div className="flex items-center justify-end gap-2 -mt-4 mb-2">
+        {[7, 30, 90].map(d => (
+          <button
+            key={d}
+            onClick={() => setDays(d)}
+            className={`px-3 py-1 rounded-full text-xs font-bold transition-all border ${
+              days === d
+                ? 'bg-primary text-white border-primary shadow-md shadow-primary/20'
+                : 'bg-white/5 text-white/50 border-white/5 hover:border-white/20 hover:text-white'
+            }`}
+          >
+            {d}d
+          </button>
+        ))}
+      </div>
+
       {/* Summary Cards */}
+...
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <UsageCard 
           title="Audio Procesado" 

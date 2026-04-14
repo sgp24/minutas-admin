@@ -8,7 +8,9 @@ import {
   FileText, 
   DollarSign,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Radio,
+  UserPlus
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -30,6 +32,14 @@ interface DailyStat {
   sessions: number;
 }
 
+interface RecentSignup {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
+
 interface Metrics {
   totalUsers: number;
   activeToday: number;
@@ -42,31 +52,60 @@ interface Metrics {
   };
   mrr: number;
   dailyStats: DailyStat[];
+  recentSignups: RecentSignup[];
 }
 
 const COLORS = ['#94a3b8', '#4d8eff', '#8b5cf6', '#22d3ee'];
 
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return 'ahora';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `hace ${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'Ayer';
+  return `hace ${days}d`;
+}
+
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [activeSessions, setActiveSessions] = useState<{id: string, title?: string, userEmail: string, createdAt: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      setLoading(true);
-      try {
-        const data = await api.get<Metrics>('/minutas/admin/metrics');
-        setMetrics(data);
-      } catch (err: any) {
-        setError(err.message || 'Error al cargar métricas');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchMetrics = async () => {
+    setLoading(true);
+    try {
+      const data = await api.get<Metrics>('/minutas/admin/metrics');
+      setMetrics(data);
+    } catch (err: any) {
+      setError(err.message || 'Error al cargar métricas');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchMetrics();
   }, [refreshKey]);
+
+  useEffect(() => {
+    const fetchActive = async () => {
+      try {
+        const data = await api.get<{ items: any[] }>('/minutas/admin/sessions?page=1&pageSize=5&status=active');
+        setActiveSessions(data.items);
+      } catch (err) {
+        console.error('Error fetching active sessions', err);
+      }
+    };
+    fetchActive();
+    const interval = setInterval(fetchActive, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (loading && !metrics) {
     return (
@@ -140,9 +179,44 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Widget: Sesiones Activas (TAREA-25) */}
+      <div className="rounded-3xl border border-white/5 bg-[#111317] p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+              <Radio size={18} />
+            </div>
+            <div>
+              <h3 className="font-bold text-white">Sesiones activas</h3>
+              <p className="text-xs text-white/30">Actualiza cada 15 segundos</p>
+            </div>
+          </div>
+          <span className="flex h-2.5 w-2.5 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+          </span>
+        </div>
+
+        {activeSessions.length === 0 ? (
+          <p className="text-center text-sm text-white/20 py-6 italic">Sin sesiones activas en este momento</p>
+        ) : (
+          <div className="space-y-3">
+            {activeSessions.map(s => (
+              <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{s.title || 'Sin título'}</p>
+                  <p className="text-xs text-white/40 truncate">{s.userEmail}</p>
+                </div>
+                <span className="ml-3 text-xs font-mono text-white/30">{timeAgo(s.createdAt)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Charts & Details */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Gráfico de Tendencia (Nueva TAREA-17) */}
+        {/* Gráfico de Tendencia (TAREA-17) */}
         <div className="rounded-2xl border border-white/5 bg-[#111317] p-6 lg:col-span-2">
           <h3 className="mb-6 text-sm font-bold uppercase tracking-wider text-white/40">
             Tendencia de Crecimiento
@@ -231,6 +305,45 @@ export default function DashboardPage() {
               </PieChart>
             </ResponsiveContainer>
           </div>
+        </div>
+      </div>
+
+      {/* Widget: Últimos registros (TAREA-29) */}
+      <div className="rounded-3xl border border-white/5 bg-[#111317] p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 rounded-xl bg-white/5 text-white/40">
+            <UserPlus size={18} />
+          </div>
+          <div>
+            <h3 className="font-bold text-white">Últimos registros</h3>
+            <p className="text-xs text-white/30">Los 5 usuarios más recientes</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {(metrics?.recentSignups || []).map(u => (
+            <div key={u.id} className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary-light flex items-center justify-center text-xs font-bold shrink-0">
+                  {u.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{u.name}</p>
+                  <p className="text-xs text-white/40 truncate">{u.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 ml-3 shrink-0">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  u.role === 'pro' ? 'bg-blue-500/10 text-blue-400' :
+                  u.role === 'early_access' ? 'bg-cyan-500/10 text-cyan-400' :
+                  'bg-white/5 text-white/40'
+                }`}>{u.role === 'early_access' ? 'Early' : u.role}</span>
+                <span className="text-xs text-white/30 font-mono">{timeAgo(u.createdAt)}</span>
+              </div>
+            </div>
+          ))}
+          {(!metrics?.recentSignups || metrics.recentSignups.length === 0) && (
+            <p className="text-center text-sm text-white/20 py-4 italic">Sin registros recientes</p>
+          )}
         </div>
       </div>
     </div>

@@ -71,6 +71,7 @@ export default function UsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +94,8 @@ export default function UsersPage() {
         const query = new URLSearchParams({
           page: String(page),
           pageSize: '20',
-          search: debouncedSearch
+          ...(debouncedSearch && { search: debouncedSearch }),
+          ...(roleFilter !== 'all' && { role: roleFilter }),
         });
         const data = await api.get<UsersResponse>(`/minutas/admin/users?${query}`);
         setUsers(data.items);
@@ -107,7 +109,7 @@ export default function UsersPage() {
     };
 
     fetchUsers();
-  }, [page, debouncedSearch]);
+  }, [page, debouncedSearch, roleFilter]);
 
   const getRoleBadge = (role: User['role']) => {
     const styles: Record<string, string> = {
@@ -143,39 +145,58 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       {/* Filters & Actions */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative max-w-sm flex-1">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Search className="h-4 w-4 text-white/30" />
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative max-w-sm flex-1">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <Search className="h-4 w-4 text-white/30" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar por nombre o email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="block w-full rounded-xl border border-white/5 bg-[#111317] py-2.5 pl-10 pr-3 text-sm text-white placeholder-white/20 transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/10"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Buscar por nombre o email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="block w-full rounded-xl border border-white/5 bg-[#111317] py-2.5 pl-10 pr-3 text-sm text-white placeholder-white/20 transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/10"
-          />
+          
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => exportToCSV(users.map(u => ({ 
+                nombre: u.name, 
+                email: u.email, 
+                rol: u.role, 
+                estado: u.status, 
+                proveedor: u.authProvider, 
+                registro: u.createdAt 
+              })), 'usuarios.csv')}
+              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40 transition-all hover:text-white"
+            >
+              <Download size={14} />
+              Exportar CSV
+            </button>
+            <div className="h-4 w-px bg-white/10" />
+            <div className="text-sm text-white/40">
+              <span>{total} usuarios encontrados</span>
+            </div>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => exportToCSV(users.map(u => ({ 
-              nombre: u.name, 
-              email: u.email, 
-              rol: u.role, 
-              estado: u.status, 
-              proveedor: u.authProvider, 
-              registro: u.createdAt 
-            })), 'usuarios.csv')}
-            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40 transition-all hover:text-white"
-          >
-            <Download size={14} />
-            Exportar CSV
-          </button>
-          <div className="h-4 w-px bg-white/10" />
-          <div className="text-sm text-white/40">
-            <span>{total} usuarios encontrados</span>
-          </div>
+
+        {/* Role Chips */}
+        <div className="flex flex-wrap gap-2">
+          {(['all', 'free', 'pro', 'team', 'early_access', 'admin'] as const).map(r => (
+            <button
+              key={r}
+              onClick={() => { setRoleFilter(r); setPage(1); }}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-all border ${
+                roleFilter === r
+                  ? 'bg-primary text-white border-primary shadow-md shadow-primary/20'
+                  : 'bg-white/5 text-white/50 border-white/5 hover:border-white/20 hover:text-white'
+              }`}
+            >
+              {r === 'all' ? 'Todos' : r === 'early_access' ? 'Early Access' : r.charAt(0).toUpperCase() + r.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
 

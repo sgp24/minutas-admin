@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  RefreshCw,
+import { 
+  CheckCircle2, 
+  AlertTriangle, 
+  XCircle, 
+  RefreshCw, 
   Loader2,
   Database,
   Frown,
@@ -31,6 +31,12 @@ interface HealthResponse {
   processingVolume: HealthCheck;
 }
 
+interface HealthEvent {
+  status: 'healthy' | 'degraded' | 'down';
+  timestamp: string;
+  trigger: 'auto' | 'manual';
+}
+
 function timeAgo(dateStr: string): string {
   const diff = Math.max(0, Date.now() - new Date(dateStr).getTime());
   const minutes = Math.floor(diff / 60000);
@@ -40,16 +46,26 @@ function timeAgo(dateStr: string): string {
 
 export default function HealthPage() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [healthHistory, setHealthHistory] = useState<HealthEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [cleaning, setCleaning] = useState(false);
   const [cleanResult, setCleanResult] = useState<{ count: number } | null>(null);
 
-  const fetchHealth = async () => {
+  const fetchHealth = async (isManual = false) => {
     setLoading(true);
     try {
       const data = await api.get<HealthResponse>('/minutas/admin/health');
       setHealth(data);
+      
+      setHealthHistory(prev => {
+        const newEvent: HealthEvent = {
+          status: data.status,
+          timestamp: new Date().toISOString(),
+          trigger: isManual ? 'manual' : 'auto',
+        };
+        return [newEvent, ...prev].slice(0, 20);
+      });
     } catch (err) {
       console.error('Error fetching health', err);
     } finally {
@@ -72,8 +88,8 @@ export default function HealthPage() {
   };
 
   useEffect(() => {
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 30000); // Auto-refresh 30s
+    fetchHealth(refreshKey > 0);
+    const interval = setInterval(() => fetchHealth(false), 30000); // Auto-refresh 30s
     return () => clearInterval(interval);
   }, [refreshKey]);
 
@@ -116,7 +132,7 @@ export default function HealthPage() {
         <div className="flex items-center gap-3">
           {/* Resultado de limpieza */}
           {cleanResult !== null && (
-            <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${
+            <span className={`text-xs font-bold px-3 py-1.5 rounded-full animate-in fade-in duration-300 ${
               cleanResult.count > 0
                 ? 'bg-emerald-500/10 text-emerald-400'
                 : 'bg-white/5 text-white/40'
@@ -139,7 +155,7 @@ export default function HealthPage() {
           </button>
 
           {/* Verificar ahora */}
-          <button
+          <button 
             onClick={() => setRefreshKey(k => k + 1)}
             disabled={loading}
             className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white px-6 py-3 rounded-2xl text-sm font-bold transition-all disabled:opacity-50"
@@ -157,6 +173,40 @@ export default function HealthPage() {
         <CheckCard title="Sesiones Atascadas" icon={PauseCircle} check={health?.stuckSessions} />
         <CheckCard title="Volumen de Procesamiento" icon={BarChart3} check={health?.processingVolume} />
       </div>
+
+      {/* Session History (TAREA-30) */}
+      {healthHistory.length > 0 && (
+        <div className="rounded-3xl border border-white/5 bg-[#111317] p-6">
+          <h3 className="font-bold text-white/60 text-sm mb-4 uppercase tracking-widest text-[11px]">
+            Historial de sesión
+          </h3>
+          <div className="space-y-2">
+            {healthHistory.map((event, i) => (
+              <div key={i} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className={`h-1.5 w-1.5 rounded-full ${
+                    event.status === 'healthy' ? 'bg-emerald-400' :
+                    event.status === 'degraded' ? 'bg-amber-400' : 'bg-red-400'
+                  }`} />
+                  <span className={`font-semibold ${
+                    event.status === 'healthy' ? 'text-emerald-400' :
+                    event.status === 'degraded' ? 'text-amber-400' : 'text-red-400'
+                  }`}>
+                    {event.status === 'healthy' ? 'Operativo' :
+                     event.status === 'degraded' ? 'Degradado' : 'Caído'}
+                  </span>
+                  {event.trigger === 'manual' && (
+                    <span className="text-white/20 text-[10px] lowercase px-1.5 py-0.5 rounded bg-white/5">manual</span>
+                  )}
+                </div>
+                <span className="text-white/30 font-mono">
+                  {new Date(event.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

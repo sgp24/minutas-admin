@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  Search,
+import { 
+  Search, 
+  ChevronLeft, 
+  ChevronRight,
   Loader2,
   Monitor,
   Upload,
   Globe,
-  CheckCircle2
+  CheckCircle2,
+  Download
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import SessionDrawer from '@/components/SessionDrawer';
@@ -51,7 +54,30 @@ function formatDuration(seconds?: number): string {
   return `${m}m`;
 }
 
-type StatusFilter = 'all' | 'completed' | 'active' | 'transcribed';
+function exportToCSV(rows: Record<string, any>[], filename: string) {
+  if (rows.length === 0) return
+  const headers = Object.keys(rows[0])
+  const csv = [
+    headers.join(','),
+    ...rows.map(row =>
+      headers.map(h => {
+        const val = row[h] ?? ''
+        return typeof val === 'string' && val.includes(',')
+          ? `"${val.replace(/"/g, '""')}"`
+          : val
+      }).join(',')
+    )
+  ].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+type StatusFilter = 'all' | 'completed' | 'active' | 'transcribed' | 'failed';
 
 export default function ActivityPage() {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
@@ -138,23 +164,46 @@ export default function ActivityPage() {
           </div>
 
           <div className="flex p-1 rounded-xl bg-[#111317] border border-white/5 gap-1">
-            {(['all', 'completed', 'active', 'transcribed'] as const).map((f) => (
+            {(['all', 'completed', 'active', 'transcribed', 'failed'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => { setFilter(f); setPage(1); }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all capitalize ${
                   filter === f 
-                    ? 'bg-white/10 text-white' 
+                    ? (f === 'failed' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-white/10 text-white') 
                     : 'text-white/40 hover:text-white/60'
                 }`}
               >
-                {f === 'all' ? 'Todas' : f}
+                {f === 'all' ? 'Todas' : f === 'failed' ? 'Fallidas' : f}
               </button>
             ))}
           </div>
         </div>
-        <div className="text-xs font-bold text-white/30 uppercase tracking-widest">
-          {total} sesiones
+        
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => exportToCSV(
+              sessions.map(s => ({
+                id: s.id,
+                titulo: s.title || 'Sin título',
+                usuario: s.userEmail,
+                status: s.status,
+                fuente: s.source,
+                duracion_seg: s.durationSeconds ?? '',
+                minuta: s.hasMinuta ? 'Sí' : 'No',
+                creado: s.createdAt,
+              })),
+              'actividad.csv'
+            )}
+            className="flex items-center gap-1.5 text-white/40 hover:text-white text-xs font-semibold transition-all"
+          >
+            <Download size={14} />
+            CSV
+          </button>
+          <div className="h-4 w-px bg-white/10" />
+          <div className="text-xs font-bold text-white/30 uppercase tracking-widest">
+            {total} sesiones
+          </div>
         </div>
       </div>
 
