@@ -1,6 +1,7 @@
 'use client';
 
 import AdminSidebar from '@/components/AdminSidebar';
+import GlobalSearch from '@/components/GlobalSearch';
 import { usePathname } from 'next/navigation';
 
 const TITLES: Record<string, string> = {
@@ -26,6 +27,8 @@ export default function AdminLayout({
       <AdminSidebar />
       
       <main className="flex-1 lg:pl-[240px]">
+        <GlobalSearch />
+        
         {/* Header */}
         <header className="sticky top-0 z-30 flex h-16 items-center border-b border-white/5 bg-[#0c0e12]/80 px-8 backdrop-blur-md">
           <h1 className="text-xl font-bold tracking-tight text-white lg:text-2xl">

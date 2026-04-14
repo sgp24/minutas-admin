@@ -39,6 +39,15 @@ interface UserDetail extends User {
   }[];
 }
 
+interface UserSession {
+  id: string;
+  title?: string;
+  status: string;
+  hasMinuta: boolean;
+  durationSeconds?: number;
+  createdAt: string;
+}
+
 interface UserDrawerProps {
   user: User | null;
   onClose: () => void;
@@ -50,6 +59,8 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
   const [status, setStatus] = useState<User['status']>('active');
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [sessions, setSessions] = useState<UserSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -58,8 +69,10 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
       setRole(user.role);
       setStatus(user.status);
       fetchUserDetail(user.id);
+      fetchUserSessions(user.id);
     } else {
       setDetail(null);
+      setSessions([]);
     }
   }, [user]);
 
@@ -72,6 +85,18 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
       console.error('Error fetching user detail', err);
     } finally {
       setLoadingDetail(false);
+    }
+  };
+
+  const fetchUserSessions = async (userId: string) => {
+    setLoadingSessions(true);
+    try {
+      const data = await api.get<{ items: UserSession[] }>(`/minutas/admin/users/${userId}/sessions?pageSize=5`);
+      setSessions(data.items);
+    } catch (err) {
+      console.error('Error fetching user sessions', err);
+    } finally {
+      setLoadingSessions(false);
     }
   };
 
@@ -236,7 +261,7 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
             </div>
 
             {/* Subscriptions History */}
-            <div className="space-y-4 pb-10">
+            <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-bold text-white/60 uppercase tracking-wider">
                 <Tag size={16} className="text-indigo-400" />
                 Historial de Suscripciones
@@ -275,6 +300,43 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
                 )}
               </div>
             </div>
+
+            {/* Últimas sesiones (TAREA-32) */}
+            <div className="space-y-3 pb-10">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 ml-1">
+                Últimas sesiones
+              </p>
+              {loadingSessions ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 size={16} className="animate-spin text-white/20" />
+                </div>
+              ) : sessions.length === 0 ? (
+                <p className="text-xs text-white/20 italic text-center py-3">Sin sesiones registradas</p>
+              ) : (
+                <div className="space-y-2">
+                  {sessions.map(s => (
+                    <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-white truncate">{s.title || 'Sin título'}</p>
+                        <p className="text-[10px] text-white/30">
+                          {s.hasMinuta ? '✓ Con minuta' : 'Sin minuta'}
+                          {s.durationSeconds ? ` · ${Math.round(s.durationSeconds / 60)}m` : ''}
+                        </p>
+                      </div>
+                      <span className={`ml-2 text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                        s.status === 'completed' || s.status === 'transcribed'
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : s.status === 'failed'
+                          ? 'bg-red-500/10 text-red-400'
+                          : 'bg-white/5 text-white/40'
+                      }`}>
+                        {s.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Footer Action */}
@@ -303,4 +365,3 @@ export default function UserDrawer({ user, onClose, onUpdate }: UserDrawerProps)
     </div>
   );
 }
-

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { 
   X, 
   Monitor, 
@@ -10,8 +11,10 @@ import {
   Calendar, 
   Copy, 
   User as UserIcon,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface SessionItem {
   id: string;
@@ -24,6 +27,27 @@ interface SessionItem {
   durationSeconds?: number;
   hasMinuta: boolean;
   createdAt: string;
+}
+
+interface AdminSessionDetail {
+  id: string;
+  title: string | null;
+  status: string;
+  source: string;
+  durationSeconds: number | null;
+  hasMinuta: boolean;
+  createdAt: string;
+  userEmail: string;
+  userName: string;
+  transcription: {
+    fullText: string;
+    engine: string;
+    processingMs: number | null;
+  } | null;
+  minuta: {
+    contentMd: string;
+    summary: string | null;
+  } | null;
 }
 
 interface SessionDrawerProps {
@@ -40,7 +64,26 @@ function formatDuration(seconds?: number): string {
 }
 
 export default function SessionDrawer({ session, onClose }: SessionDrawerProps) {
+  const [detail, setDetail] = useState<AdminSessionDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [showModal, setShowModal] = useState<'transcription' | 'minuta' | null>(null);
+
   if (!session) return null;
+
+  const loadDetail = async (show: 'transcription' | 'minuta') => {
+    if (!detail || detail.id !== session.id) {
+      setLoadingDetail(true);
+      try {
+        const data = await api.get<AdminSessionDetail>(`/minutas/admin/sessions/${session.id}`);
+        setDetail(data);
+      } catch (err) {
+        console.error('Error loading session detail', err);
+      } finally {
+        setLoadingDetail(false);
+      }
+    }
+    setShowModal(show);
+  };
 
   const getSourceIcon = (source: SessionItem['source']) => {
     switch (source) {
@@ -84,7 +127,11 @@ export default function SessionDrawer({ session, onClose }: SessionDrawerProps) 
               <div>{getStatusBadge(session.status)}</div>
             </div>
             <button 
-              onClick={onClose}
+              onClick={() => {
+                onClose();
+                setDetail(null);
+                setShowModal(null);
+              }}
               className="rounded-lg p-2 text-white/40 hover:bg-white/5 hover:text-white transition-all"
             >
               <X size={20} />
@@ -157,6 +204,26 @@ export default function SessionDrawer({ session, onClose }: SessionDrawerProps) 
               </div>
             </div>
 
+            {/* Content Actions */}
+            <div className="flex gap-2 pt-4 border-t border-white/5">
+              {session.hasMinuta && (
+                <button
+                  onClick={() => loadDetail('minuta')}
+                  disabled={loadingDetail}
+                  className="flex-1 text-xs font-bold py-3 rounded-xl bg-primary/10 text-primary-light hover:bg-primary/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loadingDetail ? <Loader2 size={14} className="animate-spin" /> : 'Ver minuta'}
+                </button>
+              )}
+              <button
+                onClick={() => loadDetail('transcription')}
+                disabled={loadingDetail}
+                className="flex-1 text-xs font-bold py-3 rounded-xl bg-white/5 text-white/60 hover:bg-white/10 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loadingDetail ? <Loader2 size={14} className="animate-spin" /> : 'Ver transcripción'}
+              </button>
+            </div>
+
             {/* Session ID */}
             <div className="pt-4">
               <button 
@@ -171,6 +238,40 @@ export default function SessionDrawer({ session, onClose }: SessionDrawerProps) 
           </div>
         </div>
       </div>
+
+      {/* Content Modal Overlay */}
+      {showModal && detail && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-3xl border border-white/10 bg-[#111317] shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-white/5">
+              <h3 className="font-bold text-white">
+                {showModal === 'transcription' ? 'Transcripción completa' : 'Minuta generada'}
+              </h3>
+              <button onClick={() => setShowModal(null)} className="text-white/30 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              {showModal === 'transcription' && !detail.transcription && (
+                <p className="text-sm text-white/30 italic text-center py-12">Sin transcripción disponible</p>
+              )}
+              {showModal === 'minuta' && !detail.minuta && (
+                <p className="text-sm text-white/30 italic text-center py-12">Sin minuta disponible</p>
+              )}
+              {showModal === 'transcription' && detail.transcription && (
+                <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap font-mono text-xs">
+                  {detail.transcription.fullText}
+                </p>
+              )}
+              {showModal === 'minuta' && detail.minuta && (
+                <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">
+                  {detail.minuta.contentMd}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
