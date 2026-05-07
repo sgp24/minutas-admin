@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Users, 
-  CreditCard, 
-  LogOut, 
-  Shield, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Users,
+  CreditCard,
+  LogOut,
+  Shield,
+  Menu,
   X,
   User as UserIcon,
   Zap,
@@ -19,7 +19,8 @@ import {
   Bell,
   AlertCircle,
   AlertTriangle,
-  Info
+  Info,
+  Cloud,
 } from 'lucide-react';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/api';
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
   { label: 'Planes', href: '/plans', icon: Package },
   { label: 'Sistema', href: '/health', icon: Activity },
   { label: 'Consumo IA', href: '/usage', icon: Cpu },
+  { label: 'GCP', href: '/gcp', icon: Cloud },
 ];
 
 interface Alert {
