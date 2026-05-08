@@ -146,11 +146,23 @@ export default function GcpPage() {
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchData = async () => {
+  const CACHE_KEY = 'gcp_metrics_cache';
+
+  const fetchData = async (force = false) => {
+    if (!force) {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          setData(JSON.parse(cached));
+          return;
+        } catch {}
+      }
+    }
     setLoading(true);
     try {
       const res = await api.get<GcpResponse>('/minutas/admin/gcp');
       setData(res);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(res));
     } catch (err) {
       console.error('Error fetching GCP metrics', err);
     } finally {
@@ -159,7 +171,11 @@ export default function GcpPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(false);
+  }, []);
+
+  useEffect(() => {
+    if (refreshKey > 0) fetchData(true);
   }, [refreshKey]);
 
   if (loading && !data) {
