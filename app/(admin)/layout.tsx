@@ -1,5 +1,5 @@
 'use client';
-
+// v2
 import AdminSidebar from '@/components/AdminSidebar';
 import GlobalSearch from '@/components/GlobalSearch';
 import { usePathname } from 'next/navigation';
