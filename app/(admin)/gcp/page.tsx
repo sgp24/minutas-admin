@@ -154,6 +154,7 @@ export default function GcpPage() {
       if (cached) {
         try {
           setData(JSON.parse(cached));
+          setLoading(false);
           return;
         } catch {}
       }
