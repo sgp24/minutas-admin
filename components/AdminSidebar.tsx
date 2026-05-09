@@ -22,6 +22,7 @@ import {
   Info,
   Cloud,
   Mail,
+  MailCheck,
 } from 'lucide-react';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/api';
@@ -35,7 +36,8 @@ const NAV_ITEMS = [
   { label: 'Sistema', href: '/health', icon: Activity },
   { label: 'Consumo IA', href: '/usage', icon: Cpu },
   { label: 'GCP', href: '/gcp', icon: Cloud },
-  { label: 'Correos', href: '/emails', icon: Mail },
+  { label: 'AWS', href: '/aws', icon: Mail },
+  { label: 'Correos', href: '/emails', icon: MailCheck },
 ];
 
 interface Alert {
