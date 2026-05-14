@@ -13,6 +13,7 @@ const TITLES: Record<string, string> = {
   '/health': 'Estado del Sistema',
   '/usage': 'Consumo de IA',
   '/gcp': 'Google Cloud Platform',
+  '/llm': 'Configuración LLM',
 };
 
 export default function AdminLayout({
