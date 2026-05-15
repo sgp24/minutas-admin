@@ -47,6 +47,8 @@ interface AdminSessionDetail {
   minuta: {
     contentMd: string;
     summary: string | null;
+    llmModel: string | null;
+    template: string;
   } | null;
 }
 
@@ -264,9 +266,23 @@ export default function SessionDrawer({ session, onClose }: SessionDrawerProps) 
                 </p>
               )}
               {showModal === 'minuta' && detail.minuta && (
-                <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">
-                  {detail.minuta.contentMd}
-                </p>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    {detail.minuta.llmModel && (
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">
+                        {detail.minuta.llmModel}
+                      </span>
+                    )}
+                    {detail.minuta.template && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/5 text-white/30 border border-white/10 uppercase tracking-wide">
+                        {detail.minuta.template}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">
+                    {detail.minuta.contentMd}
+                  </p>
+                </div>
               )}
             </div>
           </div>
